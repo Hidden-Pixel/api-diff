@@ -1,0 +1,124 @@
+package cmd
+
+import (
+	"context"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/utrack/clay/v3/server"
+	"github.com/utrack/clay/v3/server/middlewares/mwgrpc"
+	pgx_pool "gitlab.com/cerve/libs/pgx-pool"
+	swagger_ui_fs "gitlab.com/cerve/libs/swagger-ui-fs"
+	"gitlab.com/cerve/vendors/shopify/internal/app/shopify"
+	"gitlab.com/cerve/vendors/shopify/internal/datastruct"
+	"gitlab.com/cerve/vendors/shopify/internal/repository"
+	"gitlab.com/cerve/vendors/shopify/internal/service/cerve"
+	shopify2 "gitlab.com/cerve/vendors/shopify/internal/service/shopify"
+)
+
+var (
+	// Used for flags.
+	cfgFile     string
+	userLicense string
+
+	serverCmd = &cobra.Command{
+		Use:   "serve",
+		Short: "Run HTTP and gRPC service",
+		Long:  `Run HTTP and gRPC service`,
+		Run:   RunServer,
+	}
+)
+
+func RunServer(cmd *cobra.Command, args []string) {
+	var err error
+	env := viper.GetString("ENVIRONMENT")
+	logger := CreateLogger()
+	defer logger.GracefulShutdown()
+	// setup OpenAPI
+	mux, err := swagger_ui_fs.SetupRoute("/swagger/")
+	if err != nil {
+		logger.Fatalf("setup SwaggerUI route failed with error: %s", err.Error())
+	}
+
+	dsn := PostgresConnectionString()
+	ctx := context.Background()
+	pool := pgx_pool.NewPgxPool(ctx, dsn)
+
+	// initialize repositories and services
+	or := repository.NewPostgresRepository(pool)
+
+	// NOTE(nick): only get a single client right now
+	supplier, err := or.GetSupplierByOrgNumber(ctx, viper.GetString("CERVE_SUPPLIER_ORGN"))
+	if err != nil {
+		logger.Fatalf("failed to get supplier, error: %+v", err)
+	}
+	supplierShopifyStores, err := or.GetShopifyStoresForSupplier(ctx, supplier.OrgNumber)
+	if err != nil || len(supplierShopifyStores) == 0 || len(supplierShopifyStores) > 1 {
+		logger.Fatalf("failed to get supplier shopify stores, error: %+v", err)
+	}
+	store := supplierShopifyStores[0]
+
+	sa := shopify2.NewShopifyAPI(
+		store.ClientID,
+		store.ClientSecret,
+		store.ClientAccessToken,
+		store.Name,
+		env,
+	)
+
+	cs := cerve.NewCerveProcessor(
+		store.CerveClientID,
+		store.ClientSecret,
+		store.SupplierOrgNumber,
+		supplier.Language,
+		env != datastruct.EnvironmentProduction,
+	)
+
+	// set a new gRPC/HTTP server up
+	svc := shopify.NewShopify(logger)
+	svr := server.NewServer(
+		8000,
+		server.WithHTTPMux(mux),
+		server.WithGRPCUnaryMiddlewares(mwgrpc.UnaryPanicHandler(logger)),
+	)
+
+	var toProcess, toSkip []string
+	if tmp := strings.TrimSpace(viper.GetString("SHOPIFY_CUSTOMERS_TO_PROCESS_ONLY")); tmp != "" {
+		toProcess = strings.Split(tmp, ",")
+	}
+
+	if tmp := strings.TrimSpace(viper.GetString("SHOPIFY_CUSTOMERS_TO_SKIP")); tmp != "" {
+		toSkip = strings.Split(tmp, ",")
+	}
+
+	go processNewOrdersChecking(
+		logger,
+		sa,
+		cs,
+		or,
+		store.OrdersCheckSeconds,
+		store.OrdersStartGapHours,
+		store.OrdersEndGapHours,
+		toProcess,
+		toSkip,
+	)
+
+	go processUnprocessedOrders(
+		logger,
+		or,
+		cs,
+		supplier.OrderRecheckSeconds,
+		supplier.OrderRetryLagSeconds,
+	)
+	logger.Info("the service is ready to accept connections")
+
+	// start
+	err = svr.Run(svc)
+	if err != nil {
+		logger.Fatalf("the service died with message: %s", err.Error())
+	}
+
+	logger.Info("the service completed without any error")
+}
+
