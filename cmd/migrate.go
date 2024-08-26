@@ -5,6 +5,8 @@ import (
 
 	db "github.com/Hidden-Pixel/api-diff/src/database"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,19 +20,20 @@ var migrateCmd = &cobra.Command{
 }
 
 func RunMigrate(cmd *cobra.Command, args []string) {
-	dsn := db.PostgresConnectionString()
+	connectionString := db.PGConnectionString()
 	migrationPath := viper.GetString("MIGRATION_PATH")
-	logger := log.Logger{}
+	log.Printf("connection string: %s", connectionString)
+	log.Printf("migration path: %s", migrationPath)
 	m, err := migrate.New(
 		migrationPath,
-		dsn)
-	logger.Printf("Running Database Migrations ...")
+		connectionString)
+	log.Printf("Running Database Migrations ...")
 	if err != nil {
-		logger.Fatalf("can't create migration helper: %s", err.Error())
+		log.Fatalf("can't create migration helper: %s", err.Error())
 	}
 	err = m.Up()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		logger.Fatalf("can't migrate the database: %s", err.Error())
+		log.Fatalf("can't migrate the database: %s", err.Error())
 	}
-	logger.Print("Finished Database Migrations ...")
+	log.Print("Finished Database Migrations ...")
 }

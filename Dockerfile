@@ -12,14 +12,15 @@ FROM alpine:latest
 ARG ENVIRONMENT
 ENV ENVIRONMENT=$ENVIRONMENT
 
-WORKDIR /opt
+WORKDIR /opt/api-diff
 
 EXPOSE 8000
 
+COPY --from=builder /service/api-diff/configs/${ENVIRONMENT}.yaml configs/${ENVIRONMENT}.yaml
 COPY --from=builder /service/api-diff/diff-service diff-service
 
 RUN apk update 
 RUN apk upgrade
 RUN apk --no-cache add ca-certificates
 
-ENTRYPOINT ["/opt/diff-service", "serve"]
+ENTRYPOINT ["/opt/api-diff/diff-service", "serve"]

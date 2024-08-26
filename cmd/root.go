@@ -5,8 +5,11 @@ package cmd
 
 import (
 	"os"
+	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -24,15 +27,6 @@ to quickly create a Cobra application.`,
 	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -42,5 +36,30 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
+	cobra.OnInitialize(initConfig)
+	rootCmd.AddCommand(migrateCmd)
+	rootCmd.AddCommand(serverCmd)
+
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func initConfig() {
+	// // get env variable for a current environment determination
+	env := strings.ToLower(os.Getenv("ENVIRONMENT"))
+	viper.SetConfigName(env)
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("configs/")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(errors.WithMessage(err, "failed to load config file"))
+	}
 }

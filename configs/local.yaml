@@ -1,0 +1,7 @@
+ENVIRONMENT: "local"
+MIGRATION_PATH: "file:///opt/api-diff/migrations"
+POSTGRES_HOST: "diff_database"
+POSTGRES_PORT: "5432"
+POSTGRES_USER: "postgres"
+POSTGRES_PASSWORD: "password123"
+POSTGRES_DB: "diff"
