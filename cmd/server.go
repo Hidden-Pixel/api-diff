@@ -66,10 +66,10 @@ type HTTPServer struct {
 
 func (s *HTTPServer) AttachRoutes() {
 	v1 := http.NewServeMux()
-	v1.Handle("/api", http.StripPrefix("/v1", s.Router))
-	s.Router.HandleFunc("GET /version", s.GETVersionHandler)
-	s.Router.HandleFunc("GET /request", s.GETRequestHandler)
-	s.Router.HandleFunc("GET /diff", s.GETDiffHandler)
+	v1.HandleFunc("/version", s.GETVersionHandler)
+	v1.HandleFunc("/request", s.GETRequestHandler)
+	v1.HandleFunc("/diff", s.GETDiffHandler)
+	s.Router.Handle("/v1/", http.StripPrefix("/v1", v1))
 }
 
 func (s *HTTPServer) GETVersionHandler(w http.ResponseWriter, r *http.Request) {

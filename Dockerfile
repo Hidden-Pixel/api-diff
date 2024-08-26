@@ -14,7 +14,7 @@ ENV ENVIRONMENT=$ENVIRONMENT
 
 WORKDIR /opt/api-diff
 
-EXPOSE 8000
+EXPOSE 8081
 
 COPY --from=builder /service/api-diff/configs/${ENVIRONMENT}.yaml configs/${ENVIRONMENT}.yaml
 COPY --from=builder /service/api-diff/diff-service diff-service
