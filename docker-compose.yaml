@@ -1,0 +1,60 @@
+services:
+  api-diff:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 14020:8000
+    networks:
+      - diff_network
+    depends_on:
+      diff_database:
+        condition: service_healthy
+      diff_migrate:
+        condition: service_completed_successfully
+
+  diff_migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    ports:
+      - 14020:8000
+    networks:
+      - diff_network
+    depends_on:
+      diff_database:
+        condition: service_healthy
+
+  diff_database:
+    image: postgres
+    container_name: diff_database
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: diff
+    ports:
+      - 54321:5432
+    networks:
+      - diff_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d diff"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - 5050:80
+    networks:
+      - diff_network
+    depends_on:
+      diff_database:
+        condition: service_healthy
+
+networks:
+  diff_network:
