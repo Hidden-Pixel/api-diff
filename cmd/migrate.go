@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"net/url"
 
+	db "github.com/Hidden-Pixel/api-diff/src/database"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -19,7 +18,7 @@ var migrateCmd = &cobra.Command{
 }
 
 func RunMigrate(cmd *cobra.Command, args []string) {
-	dsn := PostgresConnectionString()
+	dsn := db.PostgresConnectionString()
 	migrationPath := viper.GetString("MIGRATION_PATH")
 	logger := log.Logger{}
 	m, err := migrate.New(
@@ -34,14 +33,4 @@ func RunMigrate(cmd *cobra.Command, args []string) {
 		logger.Fatalf("can't migrate the database: %s", err.Error())
 	}
 	logger.Print("Finished Database Migrations ...")
-}
-
-func PostgresConnectionString() string {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		viper.GetString("POSTGRES_USER"),
-		url.QueryEscape(viper.GetString("POSTGRES_PASSWORD")),
-		viper.GetString("POSTGRES_HOST"),
-		viper.GetUint("POSTGRES_PORT"),
-		viper.GetString("POSTGRES_DB"))
-	return dsn
 }
