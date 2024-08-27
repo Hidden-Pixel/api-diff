@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/Hidden-Pixel/api-diff/src/database"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +54,7 @@ func Logging(next http.Handler) http.Handler {
 	})
 }
 
-func CreateHTTPServer() *HTTPServer {
+func CreateHTTPServer(db *database.DB) *HTTPServer {
 	s := HTTPServer{
 		Router: http.NewServeMux(),
 	}
@@ -62,6 +63,7 @@ func CreateHTTPServer() *HTTPServer {
 
 type HTTPServer struct {
 	Router *http.ServeMux
+	DB     *database.DB
 }
 
 func (s *HTTPServer) AttachRoutes() {
@@ -135,7 +137,11 @@ func (s *HTTPServer) RunServer() {
 }
 
 func RunServer(cmd *cobra.Command, args []string) {
-	server := CreateHTTPServer()
+	db, err := database.NewDB()
+	if err != nil {
+		log.Fatalf("failed to connect to database, error: %+v", err)
+	}
+	server := CreateHTTPServer(db)
 	server.AttachRoutes()
 	server.RunServer()
 }

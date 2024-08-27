@@ -42,7 +42,8 @@ type DB struct {
 	*pgxpool.Pool
 }
 
-func NewDBPool(connString string) (*DB, error) {
+func NewDB() (*DB, error) {
+	connString := PGConnectionString()
 	dbpool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		return nil, err
