@@ -38,57 +38,68 @@ type APIDiff struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
-func NewDBPool(connString string) (*pgxpool.Pool, error) {
+type DB struct {
+	*pgxpool.Pool
+}
+
+func NewDBPool(connString string) (*DB, error) {
 	dbpool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		return nil, err
 	}
-	return dbpool, nil
+	return &DB{
+		Pool: dbpool,
+	}, nil
 }
 
-func InsertAPIVersion(dbpool *pgxpool.Pool, version *APIVersion) error {
+func (db *DB) InsertAPIVersion(version *APIVersion) error {
 	query := `INSERT INTO api_version (version_name, release_date, description)
 	          VALUES ($1, $2, $3) RETURNING id`
-
-	err := dbpool.QueryRow(context.Background(), query, version.VersionName, version.ReleaseDate, version.Description).Scan(&version.ID)
+	err := db.QueryRow(context.Background(), query, version.VersionName, version.ReleaseDate, version.Description).Scan(&version.ID)
 	return err
 }
 
-func GetAllAPIVersions(dbpool *pgxpool.Pool) ([]APIVersion, error) {
-	rows, err := dbpool.Query(context.Background(), "SELECT id, version_name, release_date, description FROM api_version")
+func (db *DB) GetAllAPIVersions() ([]APIVersion, error) {
+	rows, err := db.Query(context.Background(), "SELECT id, version_name, release_date, description FROM api_version")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var versions []APIVersion
 	for rows.Next() {
 		var version APIVersion
-		err := rows.Scan(&version.ID, &version.VersionName, &version.ReleaseDate, &version.Description)
+		err := rows.Scan(&version.ID,
+			&version.VersionName,
+			&version.ReleaseDate,
+			&version.Description)
 		if err != nil {
 			return nil, err
 		}
 		versions = append(versions, version)
 	}
-
 	return versions, nil
 }
 
-func InsertAPIRequest(dbpool *pgxpool.Pool, request *APIRequest) error {
+func (db *DB) InsertAPIRequest(request *APIRequest) error {
 	query := `INSERT INTO api_request (version_id, endpoint, method, request_body, response_body)
 	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
-
-	err := dbpool.QueryRow(context.Background(), query, request.VersionID, request.Endpoint, request.Method, request.RequestBody, request.ResponseBody).Scan(&request.ID)
+	err := db.QueryRow(context.Background(),
+		query,
+		request.VersionID,
+		request.Endpoint,
+		request.Method,
+		request.RequestBody,
+		request.ResponseBody).Scan(&request.ID)
 	return err
 }
 
-func GetAllAPIRequests(dbpool *pgxpool.Pool) ([]APIRequest, error) {
-	rows, err := dbpool.Query(context.Background(), "SELECT id, version_id, endpoint, method, request_body, response_body, timestamp FROM api_request")
+func (db *DB) GetAllAPIRequests() ([]APIRequest, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT id, version_id, endpoint, method, request_body, response_body, timestamp FROM api_request")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var requests []APIRequest
 	for rows.Next() {
 		var request APIRequest
@@ -98,25 +109,30 @@ func GetAllAPIRequests(dbpool *pgxpool.Pool) ([]APIRequest, error) {
 		}
 		requests = append(requests, request)
 	}
-
 	return requests, nil
 }
 
-func InsertAPIDiff(dbpool *pgxpool.Pool, diff *APIDiff) error {
+func (db *DB) InsertAPIDiff(diff *APIDiff) error {
 	query := `INSERT INTO api_diff (base_version_id, compare_version_id, endpoint, method, diff_metric, divergence_score)
 	          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-
-	err := dbpool.QueryRow(context.Background(), query, diff.BaseVersionID, diff.CompareVersionID, diff.Endpoint, diff.Method, diff.DiffMetric, diff.DivergenceScore).Scan(&diff.ID)
+	err := db.QueryRow(context.Background(),
+		query,
+		diff.BaseVersionID,
+		diff.CompareVersionID,
+		diff.Endpoint,
+		diff.Method,
+		diff.DiffMetric,
+		diff.DivergenceScore).Scan(&diff.ID)
 	return err
 }
 
-func GetAllAPIDiffs(dbpool *pgxpool.Pool) ([]APIDiff, error) {
-	rows, err := dbpool.Query(context.Background(), "SELECT id, base_version_id, compare_version_id, endpoint, method, diff_metric, divergence_score, created_at FROM api_diff")
+func (db *DB) GetAllAPIDiffs() ([]APIDiff, error) {
+	rows, err := db.Query(context.Background(),
+		"SELECT id, base_version_id, compare_version_id, endpoint, method, diff_metric, divergence_score, created_at FROM api_diff")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var diffs []APIDiff
 	for rows.Next() {
 		var diff APIDiff
@@ -126,7 +142,6 @@ func GetAllAPIDiffs(dbpool *pgxpool.Pool) ([]APIDiff, error) {
 		}
 		diffs = append(diffs, diff)
 	}
-
 	return diffs, nil
 }
 
