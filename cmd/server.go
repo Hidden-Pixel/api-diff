@@ -61,6 +61,7 @@ type HTTPError struct {
 func CreateHTTPServer(db *database.DB) *HTTPServer {
 	s := HTTPServer{
 		Router: http.NewServeMux(),
+		DB:     db,
 	}
 	return &s
 }
@@ -72,9 +73,9 @@ type HTTPServer struct {
 
 func (s *HTTPServer) AttachRoutes() {
 	v1 := http.NewServeMux()
-	v1.HandleFunc("/version", s.GETVersionHandler)
-	v1.HandleFunc("/request", s.GETRequestHandler)
-	v1.HandleFunc("/diff", s.GETDiffHandler)
+	v1.HandleFunc("GET /version", s.GETVersionHandler)
+	v1.HandleFunc("GET /request", s.GETRequestHandler)
+	v1.HandleFunc("GET /diff", s.GETDiffHandler)
 	s.Router.Handle("/v1/", http.StripPrefix("/v1", v1))
 }
 
