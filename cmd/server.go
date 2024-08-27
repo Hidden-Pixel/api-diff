@@ -54,6 +54,10 @@ func Logging(next http.Handler) http.Handler {
 	})
 }
 
+type HTTPError struct {
+	Message string `json:"message"`
+}
+
 func CreateHTTPServer(db *database.DB) *HTTPServer {
 	s := HTTPServer{
 		Router: http.NewServeMux(),
@@ -75,30 +79,36 @@ func (s *HTTPServer) AttachRoutes() {
 }
 
 func (s *HTTPServer) GETVersionHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"version": "1.0.0",
+	versions, err := s.DB.GetAllAPIVersions()
+	if err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	WriteJSON(w, versions, http.StatusOK)
 }
 
 func (s *HTTPServer) GETRequestHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"request": "Handled",
+	requests, err := s.DB.GetAllAPIRequests()
+	if err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	WriteJSON(w, requests, http.StatusOK)
 }
 
 func (s *HTTPServer) GETDiffHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"diff": "No changes",
+	diffs, err := s.DB.GetAllAPIDiffs()
+	if err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	WriteJSON(w, diffs, http.StatusOK)
 }
 
 func (s *HTTPServer) RunServer() {
@@ -144,4 +154,10 @@ func RunServer(cmd *cobra.Command, args []string) {
 	server := CreateHTTPServer(db)
 	server.AttachRoutes()
 	server.RunServer()
+}
+
+func WriteJSON[T any](w http.ResponseWriter, data T, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
 }
