@@ -74,8 +74,11 @@ type HTTPServer struct {
 func (s *HTTPServer) AttachRoutes() {
 	v1 := http.NewServeMux()
 	v1.HandleFunc("GET /version", s.GETVersionHandler)
+	v1.HandleFunc("POST /version", s.POSTVersionHandler)
 	v1.HandleFunc("GET /request", s.GETRequestHandler)
+	v1.HandleFunc("POST /request", s.POSTRequestHandler)
 	v1.HandleFunc("GET /diff", s.GETDiffHandler)
+	v1.HandleFunc("POST /diff", s.POSTDiffHandler)
 	s.Router.Handle("/v1/", http.StripPrefix("/v1", v1))
 }
 
@@ -90,6 +93,23 @@ func (s *HTTPServer) GETVersionHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, versions, http.StatusOK)
 }
 
+func (s *HTTPServer) POSTVersionHandler(w http.ResponseWriter, r *http.Request) {
+	payload := database.APIVersion{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := s.DB.InsertAPIVersion(&payload); err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, payload, http.StatusOK)
+}
+
 func (s *HTTPServer) GETRequestHandler(w http.ResponseWriter, r *http.Request) {
 	requests, err := s.DB.GetAllAPIRequests()
 	if err != nil {
@@ -101,6 +121,23 @@ func (s *HTTPServer) GETRequestHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, requests, http.StatusOK)
 }
 
+func (s *HTTPServer) POSTRequestHandler(w http.ResponseWriter, r *http.Request) {
+	payload := database.APIRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := s.DB.InsertAPIRequest(&payload); err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, payload, http.StatusOK)
+}
+
 func (s *HTTPServer) GETDiffHandler(w http.ResponseWriter, r *http.Request) {
 	diffs, err := s.DB.GetAllAPIDiffs()
 	if err != nil {
@@ -110,6 +147,15 @@ func (s *HTTPServer) GETDiffHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, diffs, http.StatusOK)
+}
+
+type DiffRequest struct {
+	SourceID int `json:"source_id"`
+	TargetID int `json:"target_id"`
+}
+
+func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
+	// NOTE(nick): diff between two api_request id's
 }
 
 func (s *HTTPServer) RunServer() {

@@ -17,10 +17,8 @@ CREATE TABLE api_request (
 
 CREATE TABLE api_diff (
     id SERIAL PRIMARY KEY,
-    base_version_id INT REFERENCES api_version(id),
-    compare_version_id INT REFERENCES api_version(id),
-    endpoint VARCHAR(255) NOT NULL,
-    method VARCHAR(10) NOT NULL,
+    request_source_id INT REFERENCES api_request(id),
+    target_source_id INT REFERENCES api_request(id),
     diff_metric JSONB, -- Storing the diff results as JSON
     divergence_score NUMERIC, -- Score representing the divergence level
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
