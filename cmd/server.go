@@ -167,7 +167,7 @@ func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, diff, http.StatusOK)
 }
 
-func (s *HTTPServer) RunServer() {
+func (s *HTTPServer) Run() {
 	middleware := CreateStack(
 		Logging,
 	)
@@ -209,7 +209,7 @@ func RunServer(cmd *cobra.Command, args []string) {
 	}
 	server := CreateHTTPServer(db)
 	server.AttachRoutes()
-	server.RunServer()
+	server.Run()
 }
 
 func WriteJSON[T any](w http.ResponseWriter, data T, statusCode int) {
