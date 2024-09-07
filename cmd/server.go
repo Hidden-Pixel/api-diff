@@ -68,7 +68,7 @@ func CreateHTTPServer(db *database.DB) *HTTPServer {
 
 type HTTPServer struct {
 	Router *http.ServeMux
-	DB     *database.DB
+	DB     database.DiffDatabase
 }
 
 func (s *HTTPServer) AttachRoutes() {
@@ -150,12 +150,26 @@ func (s *HTTPServer) GETDiffHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type DiffRequest struct {
-	SourceID int `json:"source_id"`
-	TargetID int `json:"target_id"`
+	SourceRequestID int `json:"source_request_id"`
+	TargetRequestID int `json:"target_request_id"`
 }
 
 func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
-	// NOTE(nick): diff between two api_request id's
+	payload := DiffRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	diff, err := s.DB.CreateAPIDiff(payload.SourceRequestID, payload.TargetRequestID)
+	if err != nil {
+		WriteJSON(w, &HTTPError{
+			Message: err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, diff, http.StatusOK)
 }
 
 func (s *HTTPServer) RunServer() {

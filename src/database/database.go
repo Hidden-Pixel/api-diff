@@ -40,6 +40,16 @@ type DB struct {
 	*pgxpool.Pool
 }
 
+type DiffDatabase interface {
+	InsertAPIVersion(version *APIVersion) error
+	GetAllAPIVersions() ([]APIVersion, error)
+	InsertAPIRequest(request *APIRequest) error
+	GetAllAPIRequests() ([]APIRequest, error)
+	InsertAPIDiff(diff *APIDiff) error
+	GetAllAPIDiffs() ([]APIDiff, error)
+	CreateAPIDiff(sourceRequestID int, targetRequestID int) (*APIDiff, error)
+}
+
 func NewDB() (*DB, error) {
 	connString := PGConnectionString()
 	dbpool, err := pgxpool.New(context.Background(), connString)
@@ -153,7 +163,7 @@ func (db *DB) GetAllAPIDiffs() ([]APIDiff, error) {
 	return diffs, nil
 }
 
-func (db *DB) CreateAPIDiff(sourceID int, targetID int) (*APIDiff, error) {
+func (db *DB) CreateAPIDiff(sourceRequestID int, targetRequestID int) (*APIDiff, error) {
 	query := `WITH base AS (
     SELECT
         jsonb_each_text(base_version) AS kv_base
@@ -187,15 +197,15 @@ SELECT
 FROM
     diff`
 	diff := APIDiff{}
-	err := db.QueryRow(context.Background(), query, sourceID, targetID).Scan(
+	err := db.QueryRow(context.Background(), query, sourceRequestID, targetRequestID).Scan(
 		&diff.DiffMetric,
 		&diff.DivergenceScore,
 	)
 	if err != nil {
 		return nil, err
 	}
-	diff.SourceRequestID = sourceID
-	diff.TargetRequestID = targetID
+	diff.SourceRequestID = sourceRequestID
+	diff.TargetRequestID = targetRequestID
 	return &diff, nil
 }
 
