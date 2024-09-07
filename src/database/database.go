@@ -206,6 +206,9 @@ FROM
 	}
 	diff.SourceRequestID = sourceRequestID
 	diff.TargetRequestID = targetRequestID
+	if err := db.InsertAPIDiff(&diff); err != nil {
+		return nil, err
+	}
 	return &diff, nil
 }
 

@@ -149,13 +149,8 @@ func (s *HTTPServer) GETDiffHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, diffs, http.StatusOK)
 }
 
-type DiffRequest struct {
-	SourceRequestID int `json:"source_request_id"`
-	TargetRequestID int `json:"target_request_id"`
-}
-
 func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
-	payload := DiffRequest{}
+	payload := database.APIDiff{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		WriteJSON(w, &HTTPError{
 			Message: err.Error(),
