@@ -22,8 +22,6 @@ services:
       dockerfile: Dockerfile.migrate
       args:
         ENVIRONMENT: local
-    ports:
-      - 14020:8000
     networks:
       - diff_network
     depends_on:
