@@ -127,8 +127,8 @@ func (c *Client) GetDiffs() ([]database.APIDiff, error) {
 	return diffs, nil
 }
 
-func (c *Client) PostDiff(diffReq *database.APIDiff) (*database.APIDiff, error) {
-	body, err := json.Marshal(diffReq)
+func (c *Client) PostDiff(diff *database.APIDiff) (*database.APIDiff, error) {
+	body, err := json.Marshal(diff)
 	if err != nil {
 		return nil, err
 	}

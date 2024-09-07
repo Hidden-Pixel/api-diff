@@ -22,8 +22,8 @@ type APIRequest struct {
 	VersionID    int       `json:"version_id"`
 	Endpoint     string    `json:"endpoint"`
 	Method       string    `json:"method"`
-	RequestBody  string    `json:"request_body"`
-	ResponseBody string    `json:"response_body"`
+	RequestBody  []byte    `json:"request_body"`
+	ResponseBody []byte    `json:"response_body"`
 	Timestamp    time.Time `json:"timestamp"`
 }
 
@@ -64,7 +64,11 @@ func NewDB() (*DB, error) {
 func (db *DB) InsertAPIVersion(version *APIVersion) error {
 	query := `INSERT INTO api_version (version_name, release_date, description)
 	          VALUES ($1, $2, $3) RETURNING id`
-	err := db.QueryRow(context.Background(), query, version.VersionName, version.ReleaseDate, version.Description).Scan(&version.ID)
+	err := db.QueryRow(context.Background(),
+		query,
+		version.VersionName,
+		version.ReleaseDate,
+		version.Description).Scan(&version.ID)
 	return err
 }
 
@@ -164,51 +168,71 @@ func (db *DB) GetAllAPIDiffs() ([]APIDiff, error) {
 }
 
 func (db *DB) CreateAPIDiff(sourceRequestID int, targetRequestID int) (*APIDiff, error) {
-	query := `WITH base AS (
+	query := `
+WITH source AS (
+    SELECT id, request_body AS source_request_body, response_body AS source_response_body
+    FROM api_request
+    WHERE id = $1 -- Replace with the actual source ID
+),
+target AS (
+    SELECT id, request_body AS target_request_body, response_body AS target_response_body
+    FROM api_request
+    WHERE id = $2 -- Replace with the actual target ID
+),
+diffs AS (
     SELECT
-        jsonb_each_text(base_version) AS kv_base
-    FROM
-        api_request
-    WHERE
-        id = $1
-), compare AS (
-    SELECT
-        jsonb_each_text(compare_version) AS kv_compare
-    FROM
-        api_request
-    WHERE
-        id = $2
-), diff AS (
-    SELECT
-        kv_base.key AS key,
-        kv_base.value AS base_value,
-        kv_compare.value AS compare_value,
-        CASE
-            WHEN kv_base.value IS DISTINCT FROM kv_compare.value THEN 1 ELSE 0
-        END AS difference
-    FROM
-        base kv_base
-    FULL JOIN
-        compare kv_compare ON kv_base.key = kv_compare.key
+        jsonb_build_object(
+            'added', (
+                SELECT jsonb_object_agg(t.key, t.value)
+                FROM jsonb_each(target.target_request_body) AS t(key, value)
+                WHERE NOT jsonb_exists(source.source_request_body, t.key)
+            ),
+            'removed', (
+                SELECT jsonb_object_agg(s.key, s.value)
+                FROM jsonb_each(source.source_request_body) AS s(key, value)
+                WHERE NOT jsonb_exists(target.target_request_body, s.key)
+            ),
+            'changed', (
+                SELECT jsonb_object_agg(key, jsonb_build_object('from', value1, 'to', value2))
+                FROM (
+                    SELECT
+                        COALESCE(old.key, new.key) AS key,
+                        old.value AS value1,
+                        new.value AS value2
+                    FROM (
+                        SELECT key, value
+                        FROM jsonb_each(source.source_request_body)
+                    ) AS old
+                    FULL JOIN (
+                        SELECT key, value
+                        FROM jsonb_each(target.target_request_body)
+                    ) AS new
+                    ON old.key = new.key
+                    WHERE old.value IS DISTINCT FROM new.value
+                ) AS diff
+            )
+        ) AS diff_metric
+    FROM source, target
 )
+INSERT INTO api_diff (request_source_id, target_source_id, diff_metric, divergence_score)
 SELECT
-    jsonb_object_agg(key, jsonb_build_object('base_value', base_value, 'compare_value', compare_value)) AS diff_metric,
-    SUM(difference) * 100.0 / COUNT(*) AS divergence_score
-FROM
-    diff`
+    source.id AS request_source_id,
+    target.id AS target_source_id,
+    diffs.diff_metric,
+    -- Example divergence score based on the number of changes
+    COALESCE(
+        jsonb_array_length(jsonb_path_query_array(
+            diffs.diff_metric->'changed', '$[*]'
+        )), 
+        0
+    ) AS divergence_score
+FROM source, target, diffs`
 	diff := APIDiff{}
-	err := db.QueryRow(context.Background(), query, sourceRequestID, targetRequestID).Scan(
-		&diff.DiffMetric,
-		&diff.DivergenceScore,
-	)
+	err := db.QueryRow(context.Background(), query, sourceRequestID, targetRequestID).Scan(&diff.ID)
 	if err != nil {
 		return nil, err
 	}
-	diff.SourceRequestID = sourceRequestID
-	diff.TargetRequestID = targetRequestID
-	if err := db.InsertAPIDiff(&diff); err != nil {
-		return nil, err
-	}
+	// TODO(nick): get diff by id?
 	return &diff, nil
 }
 
