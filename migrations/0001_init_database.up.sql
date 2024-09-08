@@ -18,7 +18,7 @@ CREATE TABLE api_request (
 CREATE TABLE api_diff (
     id SERIAL PRIMARY KEY,
     request_source_id INT REFERENCES api_request(id),
-    target_source_id INT REFERENCES api_request(id),
+    request_target_id INT REFERENCES api_request(id),
     diff_metric JSONB, -- Storing the diff results as JSON
     divergence_score NUMERIC, -- Score representing the divergence level
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

@@ -159,6 +159,7 @@ func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	diff, err := s.DB.CreateAPIDiff(payload.SourceRequestID, payload.TargetRequestID)
 	if err != nil {
+		log.Printf("failed to create API diff - error: %+v\n", err)
 		WriteJSON(w, &HTTPError{
 			Message: err.Error(),
 		}, http.StatusInternalServerError)

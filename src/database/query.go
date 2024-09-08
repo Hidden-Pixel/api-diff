@@ -2,12 +2,12 @@ package database
 
 const diffQuery = `
 WITH source AS (
-    SELECT id, request_body AS source_request_body, response_body AS source_response_body
+    SELECT id AS source_request_id, request_body AS source_request_body, response_body AS source_response_body
     FROM api_request
     WHERE id = $1
 ),
 target AS (
-    SELECT id, request_body AS target_request_body, response_body AS target_response_body
+    SELECT id AS target_request_id, request_body AS target_request_body, response_body AS target_response_body
     FROM api_request
     WHERE id = $2
 ),
@@ -46,25 +46,23 @@ diffs AS (
         ) AS diff_metric
     FROM source, target
 )
-INSERT INTO api_diff (request_source_id, target_source_id, diff_metric, divergence_score)
+INSERT INTO api_diff (request_source_id, request_target_id, diff_metric, divergence_score)
 SELECT
-    source.id AS request_source_id,
-    target.id AS target_source_id,
+    source.source_request_id,
+    target.target_request_id,
     diffs.diff_metric,
-    -- Example divergence score based on the number of changes
-	-- TODO(nick): add other field and accumulate?
-	-- NOTE(nick): default behavior, maybe change to custom layer in go instead?
     COALESCE(
         jsonb_array_length(jsonb_path_query_array(
             diffs.diff_metric->'changed', '$.*'
-        )) +
+        )) + 
         jsonb_array_length(jsonb_path_query_array(
             diffs.diff_metric->'added', '$.*'
         )) +
         jsonb_array_length(jsonb_path_query_array(
             diffs.diff_metric->'removed', '$.*'
-        )), 
+        )),
         0
     ) AS divergence_score
 FROM source, target, diffs
+RETURNING id
 `

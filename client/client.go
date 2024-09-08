@@ -22,7 +22,7 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-func (c *Client) GetVersions() ([]database.APIVersion, error) {
+func (c *Client) GetVersions() ([]*database.APIVersion, error) {
 	resp, err := c.HTTPClient.Get(fmt.Sprintf("%s/v1/version", c.BaseURL))
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (c *Client) GetVersions() ([]database.APIVersion, error) {
 		return nil, fmt.Errorf("failed to get versions: %s", string(body))
 	}
 
-	var versions []database.APIVersion
+	var versions []*database.APIVersion
 	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
 		return nil, err
 	}

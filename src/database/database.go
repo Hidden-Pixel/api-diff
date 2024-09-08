@@ -169,7 +169,7 @@ func (db *DB) GetAllAPIDiffs() ([]APIDiff, error) {
 
 func (db *DB) GetAPIDiffByID(id int) (*APIDiff, error) {
 	row := db.QueryRow(context.Background(),
-		`SELECT id, source_request_id, target_request_id, diff_metric, divergence_score, created_at FROM api_diff WHERE id = $1`, id)
+		`SELECT id, request_source_id, request_target_id, diff_metric, divergence_score, created_at FROM api_diff WHERE id = $1`, id)
 	diff := APIDiff{}
 	err := row.Scan(&diff.ID,
 		&diff.SourceRequestID,
@@ -185,12 +185,18 @@ func (db *DB) GetAPIDiffByID(id int) (*APIDiff, error) {
 
 func (db *DB) CreateAPIDiff(sourceRequestID int, targetRequestID int) (*APIDiff, error) {
 	var id int
-	err := db.QueryRow(context.Background(), diffQuery, sourceRequestID, targetRequestID).Scan(&id)
+	err := db.QueryRow(context.Background(),
+		diffQuery,
+		sourceRequestID,
+		targetRequestID).Scan(&id)
 	if err != nil {
+		fmt.Printf("failed to insert diff record, error: %+v\n", err)
 		return nil, err
 	}
+	fmt.Printf("successfully inserted diff record, id: %d\n", id)
 	newDiff, err := db.GetAPIDiffByID(id)
 	if err != nil {
+		fmt.Printf("failed to fetch diff record, error: %+v\n", err)
 		return nil, err
 	}
 	return newDiff, nil
