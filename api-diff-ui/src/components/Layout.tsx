@@ -17,6 +17,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Button variant="ghost" asChild>
               <Link to="/diff">Diff Viewer</Link>
             </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/form">Data Entry</Link>
+            </Button>
           </div>
         </nav>
       </header>
