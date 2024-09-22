@@ -73,15 +73,18 @@ type HTTPServer struct {
 
 func (s *HTTPServer) AttachRoutes() {
 	v1 := http.NewServeMux()
-	v1.HandleFunc("GET /version", s.GETVersionHandler)
-	v1.HandleFunc("POST /version", s.POSTVersionHandler)
 	v1.HandleFunc("GET /request", s.GETRequestHandler)
 	v1.HandleFunc("POST /request", s.POSTRequestHandler)
-	v1.HandleFunc("GET /diff", s.GETDiffHandler)
-	v1.HandleFunc("POST /diff", s.POSTDiffHandler)
 	s.Router.Handle("/v1/", http.StripPrefix("/v1", v1))
 }
 
+func (s *HTTPServer) GETRequestHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+func (s *HTTPServer) POSTRequestHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+/*
 func (s *HTTPServer) GETVersionHandler(w http.ResponseWriter, r *http.Request) {
 	versions, err := s.DB.GetAllAPIVersions()
 	if err != nil {
@@ -167,6 +170,7 @@ func (s *HTTPServer) POSTDiffHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, diff, http.StatusOK)
 }
+*/
 
 func (s *HTTPServer) Run() {
 	middleware := CreateStack(
