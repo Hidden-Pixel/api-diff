@@ -1,5 +1,6 @@
 CREATE TABLE api_request (
-    id SERIAL PRIMARY KEY,
+    id SERIAL NOT NULL,
+    transaction_id VARCHAR(32) NOT NULL,
     endpoint VARCHAR(255) NOT NULL,
     method VARCHAR(10) NOT NULL,
     -- source data
@@ -11,5 +12,6 @@ CREATE TABLE api_request (
     target_request_body JSONB,
     target_response_body JSONB,
     -- creation 
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(id, transaction_id)
 );
