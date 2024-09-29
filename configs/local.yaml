@@ -6,5 +6,9 @@ POSTGRES_USER: "postgres"
 POSTGRES_PASSWORD: "password123"
 POSTGRES_DB: "diff"
 server:
-  - path: "/api/old"
-    target: "http://localhost:8081"
+  - path: "/api/test"
+    target:
+      - url: "http://localhost:8081"
+        returnable: true
+      - url: "http://localhost:8082"
+        returnable: false
