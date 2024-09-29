@@ -31,6 +31,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(reverseProxyServerCmd)
 
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
@@ -45,13 +46,12 @@ func Execute() {
 }
 
 func initConfig() {
-	// // get env variable for a current environment determination
+	// get env variable for a current environment determination
 	env := strings.ToLower(os.Getenv("ENVIRONMENT"))
 	viper.SetConfigName(env)
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("configs/")
-	err := viper.ReadInConfig()
-	if err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		panic(errors.WithMessage(err, "failed to load config file"))
 	}
 }

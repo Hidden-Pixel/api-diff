@@ -13,10 +13,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+/*
+NOTE(nick):
+- might be able to leave this in for testing?
+*/
+
 var serverCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Run HTTP and gRPC service",
-	Long:  `Run HTTP and gRPC service`,
+	Short: "Run Reverse Proxy",
+	Long:  `Run Reverse Proxy`,
 	Run:   RunServer,
 }
 
@@ -74,8 +79,11 @@ type HTTPServer struct {
 func (s *HTTPServer) AttachRoutes() {
 	v1 := http.NewServeMux()
 	v1.HandleFunc("GET /request", s.GETRequestHandler)
-	v1.HandleFunc("POST /request", s.POSTRequestHandler)
 	s.Router.Handle("/v1/", http.StripPrefix("/v1", v1))
+	/*
+		v1.HandleFunc("GET /request", s.GETRequestHandler)
+		v1.HandleFunc("POST /request", s.POSTRequestHandler)
+	*/
 }
 
 func (s *HTTPServer) GETRequestHandler(w http.ResponseWriter, r *http.Request) {
