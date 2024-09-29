@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -110,7 +110,7 @@ func CreateReverseProxy() *ReverseProxy {
 				case returnableResponse := <-returnableResponseChan:
 					if returnableResponse != nil {
 						defer returnableResponse.Body.Close()
-						body, err := ioutil.ReadAll(returnableResponse.Body)
+						body, err := io.ReadAll(returnableResponse.Body)
 						if err != nil {
 							http.Error(w, "Failed to read response body", http.StatusInternalServerError)
 							return
@@ -137,7 +137,7 @@ func CreateReverseProxy() *ReverseProxy {
 
 func RunReverseProxyServer(cmd *cobra.Command, args []string) {
 	CreateReverseProxy()
-	port := ":8080"
+	port := ":8008"
 	fmt.Printf("Starting reverse proxy server on port %s\n", port)
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

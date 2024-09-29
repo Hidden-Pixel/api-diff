@@ -184,6 +184,7 @@ func (s *HTTPServer) Run() {
 	middleware := CreateStack(
 		Logging,
 	)
+
 	server := &http.Server{
 		Addr:    ":8081",
 		Handler: middleware(s.Router),
