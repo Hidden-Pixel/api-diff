@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -51,8 +50,6 @@ func CreateReverseProxy() *ReverseProxy {
 
 		http.HandleFunc(server.Path, func(targetConfigs []TargetConfig) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
-				var wg sync.WaitGroup
-
 				// Channel for collecting the response from the returnable target
 				returnableResponseChan := make(chan *http.Response, 1)
 				defer close(returnableResponseChan)
@@ -64,45 +61,60 @@ func CreateReverseProxy() *ReverseProxy {
 						continue
 					}
 
-					wg.Add(1)
-					go func(target *url.URL, isReturnable bool) {
-						defer wg.Done()
+					if targetConfig.Returnable {
+						// Handle returnable request
+						go func(target *url.URL) {
+							startTime := time.Now()
 
-						// Create a copy of the original request
-						proxyReq, err := http.NewRequest(r.Method, target.String()+r.URL.Path, r.Body)
-						if err != nil {
-							log.Printf("Failed to create request for target %s: %v", target, err)
-							return
-						}
-						proxyReq.Header = r.Header
+							// Create a copy of the original request with context
+							proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, target.String()+r.URL.Path, r.Body)
+							if err != nil {
+								log.Printf("Failed to create request for returnable target %s: %v", target, err)
+								return
+							}
+							proxyReq.Header = r.Header
 
-						client := &http.Client{}
-
-						if isReturnable {
-							// Send request to the returnable target and send response to the channel
+							client := &http.Client{}
 							resp, err := client.Do(proxyReq)
 							if err != nil {
 								log.Printf("Error forwarding request to returnable target %s: %v", target, err)
 								return
 							}
 							returnableResponseChan <- resp
-						} else {
-							// Set a context with a 1-minute deadline for non-returnable requests
+
+							// Record metrics for returnable request
+							duration := time.Since(startTime)
+							recordMetrics(target.String(), err == nil, duration)
+						}(targetURL)
+					} else {
+						// Handle non-returnable request
+						go func(target *url.URL) {
+							startTime := time.Now()
+
+							// Create a context with a 1-minute deadline for non-returnable requests
 							ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 							defer cancel()
 
-							// Attach the context to the request
-							proxyReq = proxyReq.WithContext(ctx)
-
-							// Send the request (we do not need to collect the response)
-							resp, err := client.Do(proxyReq)
+							// Create a copy of the original request with the new context
+							proxyReq, err := http.NewRequestWithContext(ctx, r.Method, target.String()+r.URL.Path, r.Body)
 							if err != nil {
-								log.Printf("Error forwarding request to target %s: %v", target, err)
+								log.Printf("Failed to create request for non-returnable target %s: %v", target, err)
 								return
 							}
-							defer resp.Body.Close()
-						}
-					}(targetURL, targetConfig.Returnable)
+							proxyReq.Header = r.Header
+
+							client := &http.Client{}
+							resp, err := client.Do(proxyReq)
+							duration := time.Since(startTime)
+
+							// Record metrics for non-returnable request
+							recordMetrics(target.String(), err == nil, duration)
+
+							if resp != nil {
+								defer resp.Body.Close()
+							}
+						}(targetURL)
+					}
 				}
 
 				// Use the response from the returnable target as soon as it's available
@@ -142,4 +154,13 @@ func RunReverseProxyServer(cmd *cobra.Command, args []string) {
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// recordMetrics records metrics for a given target
+func recordMetrics(target string, success bool, duration time.Duration) {
+	status := "success"
+	if !success {
+		status = "failure"
+	}
+	log.Printf("Metrics - Target: %s, Status: %s, Duration: %v\n", target, status, duration)
 }

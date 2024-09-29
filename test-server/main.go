@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -33,6 +34,7 @@ func main() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/api/test", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("got request on 8082")
+			time.Sleep(time.Second * 5)
 			fmt.Fprintf(w, "Response from server on port 8082")
 		})
 
